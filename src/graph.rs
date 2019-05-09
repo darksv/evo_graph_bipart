@@ -48,9 +48,9 @@ impl<'storage> Graph<'storage> {
     fn iter_edges<'g>(&'g self) -> impl Iterator<Item=(usize, usize)> + 'g {
         // Traverse only elements above the main diagonal...
         (0..self.vertices())
-            .flat_map(move |j| {
-                (j + 1..self.vertices())
-                    .map(move |i| (i, j))
+            .flat_map(move |i| {
+                (i + 1..self.vertices())
+                    .map(move |j| (i, j))
             })
     }
 }
