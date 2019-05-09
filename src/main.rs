@@ -194,33 +194,33 @@ struct Specimen {
     f2: Option<NonNanF32>,
 }
 
+struct Config {
+    population_size: usize,
+    mutation_probability: f64,
+    crossover_probability: f64,
+}
+
 fn main() {
     let vertices = 64;
-    let pop_size = 100;
-    let mutation_probability = 0.315;
-    let crossover_probability = 0.175;
-
     let mut rng = rand::thread_rng();
-
-
     let mut storage = vec![0; vertices * vertices];
     let mut graph = Graph::from_slice(vertices, storage.as_mut_slice());
     fill_graph_randomly(&mut graph, 0.00, &mut rng);
+    print_edges(vertices, &graph);
+    bipartition_ga(&Config {
+        population_size: 100,
+        mutation_probability: 0.315,
+        crossover_probability: 0.175,
+    }, &mut rng, &graph)
+}
 
-    for i in 0..vertices {
-        for j in i + 1..vertices {
-            let weight = graph.get_edge(i, j);
-            if weight != 0 {
-                println!("{} <--({})--> {}", i, weight, j);
-            }
-        }
-    }
-
-    println!("Calculating...");
-
-    let mut population = initial_population(vertices, pop_size);
-    let mut offspring = Vec::with_capacity(pop_size);
-
+fn bipartition_ga(
+    config: &Config,
+    mut rng: &mut impl Rng,
+    graph: &Graph,
+) -> () {
+    let mut population = initial_population(graph.vertices(), config.population_size);
+    let mut offspring = Vec::with_capacity(config.population_size);
     for i in 0.. {
         for specimen in &mut population {
             let (f1, f2) = objective_functions(&graph, &specimen.chromosome);
@@ -233,16 +233,16 @@ fn main() {
 
         println!("#{} {} {}", i, best1.f1.unwrap().0, best2.f2.unwrap().0);
 
-        let (pop1, pop2) = population.split_at_mut(pop_size / 2);
+        let (pop1, pop2) = population.split_at_mut(config.population_size / 2);
         pop1.sort_by_key(|s| s.f1.unwrap());
         pop2.sort_by_key(|s| s.f2.unwrap());
 
-        while offspring.len() < pop_size / 2 {
+        while offspring.len() < config.population_size / 2 {
             let desc = tournament_succession(&pop1, 10, |s| -s.f1.unwrap().0, &mut rng);
             offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
 
-        while offspring.len() < pop_size {
+        while offspring.len() < config.population_size {
             let desc = tournament_succession(&pop2, 10, |s| -s.f2.unwrap().0, &mut rng);
             offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
@@ -252,7 +252,7 @@ fn main() {
         population.shuffle(rand::thread_rng().borrow_mut());
 
         for p in &mut population {
-            if rng.gen_range(0.0, 1.0) < mutation_probability {
+            if rng.gen_range(0.0, 1.0) < config.mutation_probability {
                 match rng.gen_range(0, 1) {
                     0 => single_mutation(&mut p.chromosome, &mut rng),
                     _ => replacement_mutation(&mut p.chromosome, &mut rng),
@@ -262,12 +262,23 @@ fn main() {
 
         for p in population.chunks_mut(2) {
             if let [p1, p2] = p {
-                if rng.gen_range(0.0, 1.0) < crossover_probability {
+                if rng.gen_range(0.0, 1.0) < config.crossover_probability {
                     match rng.gen_range(0, 1) {
                         0 => onepoint_crossover(&mut p1.chromosome, &mut p2.chromosome, &mut rng),
                         _ => twopoint_crossover(&mut p1.chromosome, &mut p2.chromosome, &mut rng),
                     }
                 }
+            }
+        }
+    }
+}
+
+fn print_edges(vertices: usize, graph: &Graph) {
+    for i in 0..vertices {
+        for j in i + 1..vertices {
+            let weight = graph.get_edge(i, j);
+            if weight != 0 {
+                println!("{} <--({})--> {}", i, weight, j);
             }
         }
     }
