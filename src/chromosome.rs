@@ -8,11 +8,11 @@ pub enum Gene {
     One = 1,
 }
 
-impl From<u64> for Gene {
-    fn from(v: u64) -> Self {
+impl From<bool> for Gene {
+    fn from(v: bool) -> Self {
         match v {
-            0 => Gene::Zero,
-            _ => Gene::One,
+            false => Gene::Zero,
+            true => Gene::One,
         }
     }
 }

@@ -263,10 +263,8 @@ fn initial_population(vertices: usize, pop_size: usize) -> Vec<Chromosome> {
     let mut population = vec![];
     while population.len() < pop_size {
         let mut ch = Chromosome::with_length(vertices);
-        let x = rand::random::<u64>();
         for j in 0..vertices {
-            let bit = (x >> j) & 1;
-            ch.set(j, bit.into());
+            ch.set(j, rand::random::<bool>().into());
         }
 
         if is_constraint_satisfied(&ch) {
