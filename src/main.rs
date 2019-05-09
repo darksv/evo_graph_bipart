@@ -238,12 +238,12 @@ fn main() {
         pop2.sort_by_key(|s| s.f2.unwrap());
 
         while offspring.len() < pop_size / 2 {
-            let desc = tournament_succession(&pop1, 10, |s| -s.f1.unwrap().0, &mut rng).clone();
+            let desc = tournament_succession(&pop1, 10, |s| -s.f1.unwrap().0, &mut rng);
             offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
 
         while offspring.len() < pop_size {
-            let desc = tournament_succession(&pop2, 10, |s| -s.f2.unwrap().0, &mut rng).clone();
+            let desc = tournament_succession(&pop2, 10, |s| -s.f2.unwrap().0, &mut rng);
             offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
 
