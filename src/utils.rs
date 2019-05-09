@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+#[derive(Copy, Clone)]
 pub struct NonNanF32(pub f32);
 
 impl PartialEq for NonNanF32 {

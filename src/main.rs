@@ -17,14 +17,14 @@ use crate::graph::Graph;
 
 fn objective_function1(
     graph: &Graph,
-    ch: &Chromosome
+    ch: &Chromosome,
 ) -> f32 {
     graph.iter_connecting(ch).count() as f32
 }
 
 fn objective_function2(
     graph: &Graph,
-    ch: &Chromosome
+    ch: &Chromosome,
 ) -> f32 {
     graph.iter_connecting(ch)
         .map(|(i, j)| graph.get_edge(i, j))
@@ -33,7 +33,7 @@ fn objective_function2(
 
 fn objective_functions(
     graph: &Graph,
-    ch: &Chromosome
+    ch: &Chromosome,
 ) -> (f32, f32) {
     let (sum, count) = graph.iter_connecting(ch)
         .fold((0, 0), |(sum, count), (i, j)| {
@@ -93,7 +93,7 @@ fn fill_graph_randomly(
 
 fn single_mutation(
     ch: &mut Chromosome,
-    rng: &mut impl Rng
+    rng: &mut impl Rng,
 ) {
     loop {
         let gene = rng.gen_range(0, ch.len() - 1);
@@ -108,7 +108,7 @@ fn single_mutation(
 
 fn replacement_mutation(
     ch: &mut Chromosome,
-    rng: &mut impl Rng
+    rng: &mut impl Rng,
 ) {
     loop {
         let gene1 = rng.gen_range(0, ch.len() - 1);
@@ -168,11 +168,11 @@ fn twopoint_crossover(
 }
 
 fn tournament_succession<'p>(
-    population: &'p [Chromosome],
+    population: &'p [Specimen],
     number_to_take: usize,
-    fitness: impl Fn(&Chromosome) -> f32,
+    fitness: impl Fn(&Specimen) -> f32,
     rng: &mut impl Rng,
-) -> &'p Chromosome {
+) -> &'p Specimen {
     let mut best_specimen = None;
 
     for _ in 0..number_to_take {
@@ -188,6 +188,11 @@ fn tournament_succession<'p>(
     &population[best_specimen.unwrap()]
 }
 
+struct Specimen {
+    chromosome: Chromosome,
+    f1: Option<NonNanF32>,
+    f2: Option<NonNanF32>,
+}
 
 fn main() {
     let vertices = 64;
@@ -216,17 +221,30 @@ fn main() {
     let mut population = initial_population(vertices, pop_size);
     let mut offspring = Vec::with_capacity(pop_size);
 
-    for i in 1.. {
+    for i in 0.. {
+        for specimen in &mut population {
+            let (f1, f2) = objective_functions(&graph, &specimen.chromosome);
+            specimen.f1 = Some(NonNanF32(f1));
+            specimen.f2 = Some(NonNanF32(f2));
+        }
+
+        let best1 = population.iter().min_by_key(|ch| ch.f1.unwrap()).unwrap();
+        let best2 = population.iter().min_by_key(|ch| ch.f2.unwrap()).unwrap();
+
+        println!("#{} {} {}", i, best1.f1.unwrap().0, best2.f2.unwrap().0);
+
         let (pop1, pop2) = population.split_at_mut(pop_size / 2);
-        pop1.sort_by_key(|ch| NonNanF32(objective_function1(&graph, ch)));
-        pop2.sort_by_key(|ch| NonNanF32(objective_function2(&graph, ch)));
+        pop1.sort_by_key(|s| s.f1.unwrap());
+        pop2.sort_by_key(|s| s.f2.unwrap());
 
         while offspring.len() < pop_size / 2 {
-            offspring.push(tournament_succession(&pop1, 10, |c| -objective_function1(&graph, c), &mut rng).clone());
+            let desc = tournament_succession(&pop1, 10, |s| -s.f1.unwrap().0, &mut rng).clone();
+            offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
 
         while offspring.len() < pop_size {
-            offspring.push(tournament_succession(&pop2, 10, |c| -objective_function2(&graph, c), &mut rng).clone());
+            let desc = tournament_succession(&pop2, 10, |s| -s.f2.unwrap().0, &mut rng).clone();
+            offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
 
         population.clear();
@@ -236,8 +254,8 @@ fn main() {
         for p in &mut population {
             if rng.gen_range(0.0, 1.0) < mutation_probability {
                 match rng.gen_range(0, 1) {
-                    0 => single_mutation(p, &mut rng),
-                    _ => replacement_mutation(p, &mut rng),
+                    0 => single_mutation(&mut p.chromosome, &mut rng),
+                    _ => replacement_mutation(&mut p.chromosome, &mut rng),
                 }
             }
         }
@@ -246,21 +264,16 @@ fn main() {
             if let [p1, p2] = p {
                 if rng.gen_range(0.0, 1.0) < crossover_probability {
                     match rng.gen_range(0, 1) {
-                        0 => onepoint_crossover(p1, p2, &mut rng),
-                        _ => twopoint_crossover(p1, p2, &mut rng),
+                        0 => onepoint_crossover(&mut p1.chromosome, &mut p2.chromosome, &mut rng),
+                        _ => twopoint_crossover(&mut p1.chromosome, &mut p2.chromosome, &mut rng),
                     }
                 }
             }
         }
-
-        let best1 = population.iter().min_by_key(|ch| NonNanF32(objective_function1(&graph, ch))).unwrap();
-        let best2 = population.iter().min_by_key(|ch| NonNanF32(objective_function2(&graph, ch))).unwrap();
-
-        println!("#{} {} {}", i, objective_function1(&graph, best1), objective_function2(&graph, best2));
     }
 }
 
-fn initial_population(vertices: usize, pop_size: usize) -> Vec<Chromosome> {
+fn initial_population(vertices: usize, pop_size: usize) -> Vec<Specimen> {
     let mut population = Vec::with_capacity(pop_size);
     while population.len() < pop_size {
         let mut ch = Chromosome::with_length(vertices);
@@ -269,7 +282,7 @@ fn initial_population(vertices: usize, pop_size: usize) -> Vec<Chromosome> {
         }
 
         if is_constraint_satisfied(&ch) {
-            population.push(ch);
+            population.push(Specimen { chromosome: ch, f1: None, f2: None });
         }
     }
     population
