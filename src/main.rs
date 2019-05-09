@@ -13,6 +13,8 @@ use std::{
 use crate::chromosome::Chromosome;
 use crate::utils::NonNanF32;
 use crate::graph::Graph;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+use rayon::slice::ParallelSliceMut;
 
 
 fn objective_function1(
@@ -222,11 +224,11 @@ fn bipartition_ga(
     let mut population = initial_population(graph.vertices(), config.population_size);
     let mut offspring = Vec::with_capacity(config.population_size);
     for i in 0.. {
-        for specimen in &mut population {
+        population.par_iter_mut().for_each(|specimen| {
             let (f1, f2) = objective_functions(&graph, &specimen.chromosome);
             specimen.f1 = Some(NonNanF32(f1));
             specimen.f2 = Some(NonNanF32(f2));
-        }
+        });
 
         let best1 = population.iter().min_by_key(|ch| ch.f1.unwrap()).unwrap();
         let best2 = population.iter().min_by_key(|ch| ch.f2.unwrap()).unwrap();
@@ -234,8 +236,8 @@ fn bipartition_ga(
         println!("#{} {} {}", i, best1.f1.unwrap().0, best2.f2.unwrap().0);
 
         let (pop1, pop2) = population.split_at_mut(config.population_size / 2);
-        pop1.sort_by_key(|s| s.f1.unwrap());
-        pop2.sort_by_key(|s| s.f2.unwrap());
+        pop1.par_sort_by_key(|s| s.f1.unwrap());
+        pop2.par_sort_by_key(|s| s.f2.unwrap());
 
         while offspring.len() < config.population_size / 2 {
             let desc = tournament_succession(&pop1, 10, |s| -s.f1.unwrap().0, &mut rng);
@@ -251,25 +253,25 @@ fn bipartition_ga(
         std::mem::swap(&mut population, &mut offspring);
         population.shuffle(rand::thread_rng().borrow_mut());
 
-        for p in &mut population {
+        population.par_iter_mut().for_each_init(|| rand::thread_rng(), |rng, p| {
             if rng.gen_range(0.0, 1.0) < config.mutation_probability {
                 match rng.gen_range(0, 1) {
-                    0 => single_mutation(&mut p.chromosome, &mut rng),
-                    _ => replacement_mutation(&mut p.chromosome, &mut rng),
+                    0 => single_mutation(&mut p.chromosome, rng),
+                    _ => replacement_mutation(&mut p.chromosome, rng),
                 }
             }
-        }
+        });
 
-        for p in population.chunks_mut(2) {
+        population.par_chunks_mut(2).for_each_init(|| rand::thread_rng(), |rng, p| {
             if let [p1, p2] = p {
                 if rng.gen_range(0.0, 1.0) < config.crossover_probability {
                     match rng.gen_range(0, 1) {
-                        0 => onepoint_crossover(&mut p1.chromosome, &mut p2.chromosome, &mut rng),
-                        _ => twopoint_crossover(&mut p1.chromosome, &mut p2.chromosome, &mut rng),
+                        0 => onepoint_crossover(&mut p1.chromosome, &mut p2.chromosome, rng),
+                        _ => twopoint_crossover(&mut p1.chromosome, &mut p2.chromosome, rng),
                     }
                 }
             }
-        }
+        });
     }
 }
 
