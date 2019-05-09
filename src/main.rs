@@ -200,6 +200,7 @@ struct Config {
     population_size: usize,
     mutation_probability: f64,
     crossover_probability: f64,
+    tournament_size: usize,
 }
 
 fn main() {
@@ -213,6 +214,7 @@ fn main() {
         population_size: 100,
         mutation_probability: 0.315,
         crossover_probability: 0.175,
+        tournament_size: 10,
     }, &mut rng, &graph)
 }
 
@@ -230,8 +232,8 @@ fn bipartition_ga(
             specimen.f2 = Some(NonNanF32(f2));
         });
 
-        let best1 = population.iter().min_by_key(|ch| ch.f1.unwrap()).unwrap();
-        let best2 = population.iter().min_by_key(|ch| ch.f2.unwrap()).unwrap();
+        let best1 = population.iter().max_by_key(|ch| ch.f1.unwrap()).unwrap();
+        let best2 = population.iter().max_by_key(|ch| ch.f2.unwrap()).unwrap();
 
         println!("#{} {} {}", i, best1.f1.unwrap().0, best2.f2.unwrap().0);
 
@@ -240,12 +242,12 @@ fn bipartition_ga(
         pop2.par_sort_by_key(|s| s.f2.unwrap());
 
         while offspring.len() < config.population_size / 2 {
-            let desc = tournament_succession(&pop1, 10, |s| -s.f1.unwrap().0, &mut rng);
+            let desc = tournament_succession(&pop1, config.tournament_size, |s| s.f1.unwrap().0, &mut rng);
             offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
 
         while offspring.len() < config.population_size {
-            let desc = tournament_succession(&pop2, 10, |s| -s.f2.unwrap().0, &mut rng);
+            let desc = tournament_succession(&pop2, config.tournament_size, |s| s.f2.unwrap().0, &mut rng);
             offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
 
