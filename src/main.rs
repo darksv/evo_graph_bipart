@@ -214,22 +214,23 @@ fn main() {
     println!("Calculating...");
 
     let mut population = initial_population(vertices, pop_size);
+    let mut offspring = Vec::with_capacity(pop_size);
 
     for i in 1.. {
         let (pop1, pop2) = population.split_at_mut(pop_size / 2);
         pop1.sort_by_key(|ch| NonNanF32(objective_function1(&graph, ch)));
         pop2.sort_by_key(|ch| NonNanF32(objective_function2(&graph, ch)));
 
-        let mut p = vec![];
-        while p.len() < pop_size / 2 {
-            p.push(tournament_succession(&pop1, 10, |c| -objective_function1(&graph, c), &mut rng).clone());
+        while offspring.len() < pop_size / 2 {
+            offspring.push(tournament_succession(&pop1, 10, |c| -objective_function1(&graph, c), &mut rng).clone());
         }
 
-        while p.len() < pop_size {
-            p.push(tournament_succession(&pop2, 10, |c| -objective_function2(&graph, c), &mut rng).clone());
+        while offspring.len() < pop_size {
+            offspring.push(tournament_succession(&pop2, 10, |c| -objective_function2(&graph, c), &mut rng).clone());
         }
 
-        population = p;
+        population.clear();
+        std::mem::swap(&mut population, &mut offspring);
         population.shuffle(rand::thread_rng().borrow_mut());
 
         for p in &mut population {
@@ -260,7 +261,7 @@ fn main() {
 }
 
 fn initial_population(vertices: usize, pop_size: usize) -> Vec<Chromosome> {
-    let mut population = vec![];
+    let mut population = Vec::with_capacity(pop_size);
     while population.len() < pop_size {
         let mut ch = Chromosome::with_length(vertices);
         for j in 0..vertices {
