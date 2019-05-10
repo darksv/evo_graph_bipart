@@ -220,10 +220,10 @@ fn main() {
 
 fn bipartition_ga(
     config: &Config,
-    mut rng: &mut impl Rng,
+    rng: &mut impl Rng,
     graph: &Graph,
 ) -> () {
-    let mut population = initial_population(graph.vertices(), config.population_size);
+    let mut population = initial_population(graph.vertices(), config.population_size, rng);
     let mut offspring = Vec::with_capacity(config.population_size);
     for i in 0.. {
         population.par_iter_mut().for_each(|specimen| {
@@ -242,12 +242,12 @@ fn bipartition_ga(
         pop2.par_sort_by_key(|s| s.f2.unwrap());
 
         while offspring.len() < config.population_size / 2 {
-            let desc = tournament_succession(&pop1, config.tournament_size, |s| s.f1.unwrap().0, &mut rng);
+            let desc = tournament_succession(&pop1, config.tournament_size, |s| s.f1.unwrap().0, rng);
             offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
 
         while offspring.len() < config.population_size {
-            let desc = tournament_succession(&pop2, config.tournament_size, |s| s.f2.unwrap().0, &mut rng);
+            let desc = tournament_succession(&pop2, config.tournament_size, |s| s.f2.unwrap().0, rng);
             offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
 
@@ -288,12 +288,12 @@ fn print_edges(vertices: usize, graph: &Graph) {
     }
 }
 
-fn initial_population(vertices: usize, pop_size: usize) -> Vec<Specimen> {
+fn initial_population(vertices: usize, pop_size: usize, rng: &mut impl Rng) -> Vec<Specimen> {
     let mut population = Vec::with_capacity(pop_size);
     while population.len() < pop_size {
         let mut ch = Chromosome::with_length(vertices);
         for j in 0..vertices {
-            ch.set(j, rand::random::<bool>().into());
+            ch.set(j, rng.gen::<bool>().into());
         }
 
         if is_constraint_satisfied(&ch) {
