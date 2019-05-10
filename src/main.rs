@@ -79,7 +79,7 @@ fn fill_graph_randomly(
         for i in 0..graph.vertices() {
             for j in i + 1..graph.vertices() {
                 if rng.gen_range(0.0, 1.0) <= probability {
-                    graph.set_edge(i, j, rng.gen_range(0, 10));
+                    graph.set_edge(i, j, rng.gen_range(0, 10 + 1));
                 }
             }
         }
@@ -98,7 +98,7 @@ fn single_mutation(
     rng: &mut impl Rng,
 ) {
     loop {
-        let gene = rng.gen_range(0, ch.len() - 1);
+        let gene = rng.gen_range(0, ch.len());
         ch.toggle(gene);
         if is_constraint_satisfied(ch) {
             break;
@@ -113,8 +113,8 @@ fn replacement_mutation(
     rng: &mut impl Rng,
 ) {
     loop {
-        let gene1 = rng.gen_range(0, ch.len() - 1);
-        let gene2 = rng.gen_range(0, ch.len() - 1);
+        let gene1 = rng.gen_range(0, ch.len());
+        let gene2 = rng.gen_range(0, ch.len());
         ch.swap(gene1, gene2);
         if is_constraint_satisfied(ch) {
             break;
@@ -130,7 +130,7 @@ fn onepoint_crossover(
     rng: &mut impl Rng,
 ) {
     loop {
-        let gene1 = rng.gen_range(0, ch1.len() - 1);
+        let gene1 = rng.gen_range(0, ch1.len());
         for i in gene1..ch1.len() {
             std::mem::swap(ch1.get_mut(i), ch2.get_mut(i));
         }
@@ -152,7 +152,7 @@ fn twopoint_crossover(
 ) {
     loop {
         let gene1 = rng.gen_range(0, ch1.len() - 1);
-        let gene2 = rng.gen_range(gene1 + 1, ch1.len() - 1);
+        let gene2 = rng.gen_range(gene1 + 1, ch1.len());
 
         for i in gene1..=gene2 {
             std::mem::swap(ch1.get_mut(i), ch2.get_mut(i));
@@ -257,7 +257,7 @@ fn bipartition_ga(
 
         population.par_iter_mut().for_each_init(|| rand::thread_rng(), |rng, p| {
             if rng.gen_range(0.0, 1.0) < config.mutation_probability {
-                match rng.gen_range(0, 1) {
+                match rng.gen_range(0, 2) {
                     0 => single_mutation(&mut p.chromosome, rng),
                     _ => replacement_mutation(&mut p.chromosome, rng),
                 }
@@ -267,7 +267,7 @@ fn bipartition_ga(
         population.par_chunks_mut(2).for_each_init(|| rand::thread_rng(), |rng, p| {
             if let [p1, p2] = p {
                 if rng.gen_range(0.0, 1.0) < config.crossover_probability {
-                    match rng.gen_range(0, 1) {
+                    match rng.gen_range(0, 2) {
                         0 => onepoint_crossover(&mut p1.chromosome, &mut p2.chromosome, rng),
                         _ => twopoint_crossover(&mut p1.chromosome, &mut p2.chromosome, rng),
                     }
