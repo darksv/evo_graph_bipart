@@ -9,7 +9,7 @@ use std::{
 };
 use crate::chromosome::Chromosome;
 use crate::utils::NonNanF32;
-use crate::graph::Graph;
+pub use crate::graph::Graph;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rayon::slice::ParallelSliceMut;
 
@@ -66,7 +66,7 @@ fn is_connected(graph: &Graph) -> bool {
     visited.len() == graph.vertices()
 }
 
-fn fill_graph_randomly(
+pub fn fill_graph_randomly(
     graph: &mut Graph,
     initial_probability: f32,
     rng: &mut impl Rng,
@@ -193,31 +193,14 @@ struct Specimen {
     f2: Option<NonNanF32>,
 }
 
-struct Config {
-    population_size: usize,
-    mutation_probability: f64,
-    crossover_probability: f64,
-    tournament_size: usize,
+pub struct Config {
+    pub population_size: usize,
+    pub mutation_probability: f64,
+    pub crossover_probability: f64,
+    pub tournament_size: usize,
 }
 
-fn main() {
-    let vertices = 64;
-    let mut rng = thread_rng();
-    let mut storage = vec![0; vertices * vertices];
-    let mut graph = Graph::from_slice(vertices, storage.as_mut_slice());
-    fill_graph_randomly(&mut graph, 0.00, &mut rng);
-    print_edges(vertices, &graph);
-    bipartition_ga(&Config {
-        population_size: 100,
-        mutation_probability: 0.315,
-        crossover_probability: 0.175,
-        tournament_size: 10,
-    }, &mut rng, &graph, |i, f1, f2| {
-        println!("#{} {} {}", i, f1, f2);
-    })
-}
-
-fn bipartition_ga(
+pub fn bipartition_ga(
     config: &Config,
     rng: &mut impl Rng,
     graph: &Graph,
@@ -277,7 +260,7 @@ fn bipartition_ga(
     }
 }
 
-fn print_edges(vertices: usize, graph: &Graph) {
+pub fn print_edges(vertices: usize, graph: &Graph) {
     for i in 0..vertices {
         for j in i + 1..vertices {
             let weight = graph.get_edge(i, j);

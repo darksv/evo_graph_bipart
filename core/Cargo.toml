@@ -1,0 +1,12 @@
+[package]
+name = "core"
+version = "0.1.0"
+authors = ["darksv <darek969-12@o2.pl>"]
+edition = "2018"
+
+[dependencies]
+rand = "0.6.5"
+rayon = "1.0.3"
+
+[profile.release]
+debug = true

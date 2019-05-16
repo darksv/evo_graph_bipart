@@ -1,9 +1,12 @@
 [package]
-name = "gen"
+name = "example"
 version = "0.1.0"
 authors = ["darksv <darek969-12@o2.pl>"]
 edition = "2018"
 
 [dependencies]
 rand = "0.6.5"
-rayon = "1.0.3"
+core = { path = "../core" }
+
+[profile.release]
+debug = true
