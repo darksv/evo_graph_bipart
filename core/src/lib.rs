@@ -1,5 +1,4 @@
 mod chromosome;
-mod utils;
 mod graph;
 
 use rand::{Rng, seq::SliceRandom, thread_rng};
@@ -8,10 +7,10 @@ use std::{
     borrow::BorrowMut,
 };
 use crate::chromosome::Chromosome;
-use crate::utils::NonNanF32;
 pub use crate::graph::Graph;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rayon::slice::ParallelSliceMut;
+use noisy_float::prelude::*;
 
 
 fn objective_function1(
@@ -189,8 +188,8 @@ fn tournament_succession<'p>(
 
 struct Specimen {
     chromosome: Chromosome,
-    f1: Option<NonNanF32>,
-    f2: Option<NonNanF32>,
+    f1: Option<N32>,
+    f2: Option<N32>,
 }
 
 pub struct Config {
@@ -211,26 +210,26 @@ pub fn bipartition_ga(
     for i in 0.. {
         population.par_iter_mut().for_each(|specimen| {
             let (f1, f2) = objective_functions(&graph, &specimen.chromosome);
-            specimen.f1 = Some(NonNanF32(f1));
-            specimen.f2 = Some(NonNanF32(f2));
+            specimen.f1 = Some(n32(f1));
+            specimen.f2 = Some(n32(f2));
         });
 
         let best1 = population.iter().max_by_key(|ch| ch.f1.unwrap()).unwrap();
         let best2 = population.iter().max_by_key(|ch| ch.f2.unwrap()).unwrap();
 
-        callback(i, best1.f1.unwrap().0, best2.f2.unwrap().0);
+        callback(i, best1.f1.unwrap().into(), best2.f2.unwrap().into());
 
         let (pop1, pop2) = population.split_at_mut(config.population_size / 2);
         pop1.par_sort_by_key(|s| s.f1.unwrap());
         pop2.par_sort_by_key(|s| s.f2.unwrap());
 
         while offspring.len() < config.population_size / 2 {
-            let desc = tournament_succession(&pop1, config.tournament_size, |s| s.f1.unwrap().0, rng);
+            let desc = tournament_succession(&pop1, config.tournament_size, |s| s.f1.unwrap().into(), rng);
             offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
 
         while offspring.len() < config.population_size {
-            let desc = tournament_succession(&pop2, config.tournament_size, |s| s.f2.unwrap().0, rng);
+            let desc = tournament_succession(&pop2, config.tournament_size, |s| s.f2.unwrap().into(), rng);
             offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
         }
 
