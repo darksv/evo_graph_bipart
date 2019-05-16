@@ -2,10 +2,7 @@ mod chromosome;
 mod utils;
 mod graph;
 
-use rand::{
-    Rng,
-    seq::SliceRandom,
-};
+use rand::{Rng, seq::SliceRandom, thread_rng};
 use std::{
     collections::HashSet,
     borrow::BorrowMut,
@@ -205,7 +202,7 @@ struct Config {
 
 fn main() {
     let vertices = 64;
-    let mut rng = rand::thread_rng();
+    let mut rng = thread_rng();
     let mut storage = vec![0; vertices * vertices];
     let mut graph = Graph::from_slice(vertices, storage.as_mut_slice());
     fill_graph_randomly(&mut graph, 0.00, &mut rng);
@@ -215,14 +212,17 @@ fn main() {
         mutation_probability: 0.315,
         crossover_probability: 0.175,
         tournament_size: 10,
-    }, &mut rng, &graph)
+    }, &mut rng, &graph, |i, f1, f2| {
+        println!("#{} {} {}", i, f1, f2);
+    })
 }
 
 fn bipartition_ga(
     config: &Config,
     rng: &mut impl Rng,
     graph: &Graph,
-) -> () {
+    callback: fn(u32, f32, f32),
+) {
     let mut population = initial_population(graph.vertices(), config.population_size, rng);
     let mut offspring = Vec::with_capacity(config.population_size);
     for i in 0.. {
@@ -235,7 +235,7 @@ fn bipartition_ga(
         let best1 = population.iter().max_by_key(|ch| ch.f1.unwrap()).unwrap();
         let best2 = population.iter().max_by_key(|ch| ch.f2.unwrap()).unwrap();
 
-        println!("#{} {} {}", i, best1.f1.unwrap().0, best2.f2.unwrap().0);
+        callback(i, best1.f1.unwrap().0, best2.f2.unwrap().0);
 
         let (pop1, pop2) = population.split_at_mut(config.population_size / 2);
         pop1.par_sort_by_key(|s| s.f1.unwrap());
