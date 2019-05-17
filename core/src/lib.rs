@@ -167,14 +167,14 @@ fn twopoint_crossover(
 
 fn tournament_succession<'p>(
     population: &'p [Specimen],
-    number_to_take: usize,
+    selection_size: usize,
     fitness: impl Fn(&Specimen) -> f32,
     rng: &mut impl Rng,
 ) -> &'p Specimen {
     let mut best_specimen = None;
 
-    for _ in 0..number_to_take {
-        let current = rng.gen_range(0, population.len() - 1);
+    for _ in 0..selection_size {
+        let current = rng.gen_range(0, population.len());
         if let Some(best) = best_specimen {
             if fitness(&population[best]) >= fitness(&population[current]) {
                 continue;
