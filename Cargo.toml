@@ -4,3 +4,6 @@ members = [
     "example",
     "bindings"
 ]
+
+[profile.release]
+debug = true
