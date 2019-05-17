@@ -212,7 +212,7 @@ pub fn bipartition_ga(
     let max_iterations = config.max_iterations.unwrap_or(usize::max_value());
 
     for i in 0..max_iterations {
-        population.par_iter_mut().for_each(|specimen| {
+        population.par_iter_mut().for_each(|specimen: &mut Specimen| {
             let (f1, f2) = objective_functions(&graph, &specimen.chromosome);
             specimen.f1 = Some(n32(f1));
             specimen.f2 = Some(n32(f2));
@@ -224,8 +224,8 @@ pub fn bipartition_ga(
         callback(i, best1.f1.unwrap().into(), best2.f2.unwrap().into());
 
         let (pop1, pop2) = population.split_at_mut(config.population_size / 2);
-        pop1.par_sort_by_key(|s| s.f1.unwrap());
-        pop2.par_sort_by_key(|s| s.f2.unwrap());
+        pop1.sort_by_key(|s| s.f1.unwrap());
+        pop2.sort_by_key(|s| s.f2.unwrap());
 
         while offspring.len() < config.population_size / 2 {
             let desc = tournament_succession(&pop1, config.tournament_size, |s| s.f1.unwrap().into(), rng);
@@ -241,28 +241,28 @@ pub fn bipartition_ga(
         std::mem::swap(&mut population, &mut offspring);
         population.shuffle(rand::thread_rng().borrow_mut());
 
-        population.par_iter_mut().for_each_init(|| rand::thread_rng(), |rng, p| {
+        for specimen in population.iter_mut() {
             let should_mutate = rng.gen_range(0.0, 1.0) < config.mutation_probability;
             if !should_mutate {
-                return;
+                continue;
             }
 
             let mutation = match rng.gen_range(0, 2) {
                 0 => single_mutation,
                 _ => replacement_mutation,
             };
-            mutation(&mut p.chromosome, rng);
-        });
+            mutation(&mut specimen.chromosome, rng);
+        }
 
-        population.par_chunks_mut(2).for_each_init(|| rand::thread_rng(), |rng, pair| {
+        for pair in population.chunks_exact_mut(2) {
             let should_crossover = rng.gen_range(0.0, 1.0) < config.crossover_probability;
             if !should_crossover {
-                return;
+                continue;
             }
 
             let (s1, s2) = match pair {
                 [s1, s2] => (s1, s2),
-                _ => return,
+                _ => continue,
             };
 
             let crossover = match rng.gen_range(0, 2) {
@@ -270,7 +270,7 @@ pub fn bipartition_ga(
                 _ => twopoint_crossover,
             };
             crossover(&mut s1.chromosome, &mut s2.chromosome, rng);
-        });
+        }
     }
 }
 
