@@ -87,7 +87,7 @@ pub unsafe fn optimize_ga(
     mutation_probability: f32,
     crossover_probability: f32,
     iterations: u32,
-    callback: fn(u32, f32, f32),
+    callback: fn(usize, f32, f32),
 ) -> u32 {
     if instance.is_null() {
         return 1;
@@ -113,7 +113,8 @@ pub unsafe fn optimize_ga(
         population_size: population_size as usize,
         mutation_probability: mutation_probability as f64,
         crossover_probability: crossover_probability as f64,
-        tournament_size: 0
+        tournament_size: 0,
+        max_iterations: None
     }, thread_rng().borrow_mut(), &*instance, callback);
 
     0

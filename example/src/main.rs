@@ -13,6 +13,7 @@ fn main() {
         mutation_probability: 0.315,
         crossover_probability: 0.175,
         tournament_size: 10,
+        max_iterations: Some(10000)
     }, &mut rng, &graph, |i, f1, f2| {
         println!("#{} {} {}", i, f1, f2);
     })

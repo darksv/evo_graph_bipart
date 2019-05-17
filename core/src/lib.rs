@@ -197,17 +197,21 @@ pub struct Config {
     pub mutation_probability: f64,
     pub crossover_probability: f64,
     pub tournament_size: usize,
+    pub max_iterations: Option<usize>,
 }
 
 pub fn bipartition_ga(
     config: &Config,
     rng: &mut impl Rng,
     graph: &Graph,
-    callback: fn(u32, f32, f32),
+    callback: fn(usize, f32, f32),
 ) {
     let mut population = initial_population(graph.vertices(), config.population_size, rng);
     let mut offspring = Vec::with_capacity(config.population_size);
-    for i in 0.. {
+
+    let max_iterations = config.max_iterations.unwrap_or(usize::max_value());
+
+    for i in 0..max_iterations {
         population.par_iter_mut().for_each(|specimen| {
             let (f1, f2) = objective_functions(&graph, &specimen.chromosome);
             specimen.f1 = Some(n32(f1));
