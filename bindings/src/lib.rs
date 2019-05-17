@@ -1,4 +1,4 @@
-use core::{fill_graph_randomly, Graph, bipartition_ga, Config};
+use core::{fill_graph_randomly, bipartition_ga, Graph, Config, Chromosome};
 use rand::thread_rng;
 use std::borrow::BorrowMut;
 
@@ -115,7 +115,23 @@ pub unsafe fn optimize_ga(
         crossover_probability: crossover_probability as f64,
         tournament_size: 0,
         max_iterations: None
-    }, thread_rng().borrow_mut(), &*instance, callback);
+    }, thread_rng().borrow_mut(), &*instance, objective_functions, is_constraint_satisfied, callback);
 
     0
+}
+
+fn objective_functions(
+    graph: &Graph,
+    ch: &Chromosome,
+) -> (f32, f32) {
+    let (sum, count) = graph.iter_connecting(ch)
+        .fold((0, 0), |(sum, count), (i, j)| {
+            (sum + graph.get_edge(i, j), count + 1)
+        });
+    (sum as f32, count as f32)
+}
+
+fn is_constraint_satisfied(ch: &Chromosome) -> bool {
+    let (v1, v2) = ch.count_genes_by_value();
+    (v1 as i32 - v2 as i32).abs() <= 4
 }

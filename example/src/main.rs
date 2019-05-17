@@ -1,5 +1,23 @@
-use core::{bipartition_ga, Config, fill_graph_randomly, print_edges, Graph};
+use core::{bipartition_ga, Config, fill_graph_randomly, print_edges, Graph, Chromosome};
 use rand::thread_rng;
+
+
+fn objective_functions(
+    graph: &Graph,
+    ch: &Chromosome,
+) -> (f32, f32) {
+    let (sum, count) = graph.iter_connecting(ch)
+        .fold((0, 0), |(sum, count), (i, j)| {
+            (sum + graph.get_edge(i, j), count + 1)
+        });
+    (sum as f32, count as f32)
+}
+
+fn is_constraint_satisfied(ch: &Chromosome) -> bool {
+    let (v1, v2) = ch.count_genes_by_value();
+    (v1 as i32 - v2 as i32).abs() <= 4
+}
+
 
 fn main() {
     let vertices = 64;
@@ -14,7 +32,7 @@ fn main() {
         crossover_probability: 0.175,
         tournament_size: 10,
         max_iterations: Some(10000)
-    }, &mut rng, &graph, |i, f1, f2| {
+    }, &mut rng, &graph, objective_functions,is_constraint_satisfied,|i, f1, f2| {
         println!("#{} {} {}", i, f1, f2);
-    })
+    });
 }
