@@ -238,23 +238,34 @@ pub fn bipartition_ga(
         population.shuffle(rand::thread_rng().borrow_mut());
 
         population.par_iter_mut().for_each_init(|| rand::thread_rng(), |rng, p| {
-            if rng.gen_range(0.0, 1.0) < config.mutation_probability {
-                match rng.gen_range(0, 2) {
-                    0 => single_mutation(&mut p.chromosome, rng),
-                    _ => replacement_mutation(&mut p.chromosome, rng),
-                }
+            let should_mutate = rng.gen_range(0.0, 1.0) < config.mutation_probability;
+            if !should_mutate {
+                return;
             }
+
+            let mutation = match rng.gen_range(0, 2) {
+                0 => single_mutation,
+                _ => replacement_mutation,
+            };
+            mutation(&mut p.chromosome, rng);
         });
 
-        population.par_chunks_mut(2).for_each_init(|| rand::thread_rng(), |rng, p| {
-            if let [p1, p2] = p {
-                if rng.gen_range(0.0, 1.0) < config.crossover_probability {
-                    match rng.gen_range(0, 2) {
-                        0 => onepoint_crossover(&mut p1.chromosome, &mut p2.chromosome, rng),
-                        _ => twopoint_crossover(&mut p1.chromosome, &mut p2.chromosome, rng),
-                    }
-                }
+        population.par_chunks_mut(2).for_each_init(|| rand::thread_rng(), |rng, pair| {
+            let should_crossover = rng.gen_range(0.0, 1.0) < config.crossover_probability;
+            if !should_crossover {
+                return;
             }
+
+            let (s1, s2) = match pair {
+                [s1, s2] => (s1, s2),
+                _ => return,
+            };
+
+            let crossover = match rng.gen_range(0, 2) {
+                0 => onepoint_crossover,
+                _ => twopoint_crossover,
+            };
+            crossover(&mut s1.chromosome, &mut s2.chromosome, rng);
         });
     }
 }
