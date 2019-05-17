@@ -8,6 +8,3 @@ edition = "2018"
 rand = "0.6.5"
 rayon = "1.0.3"
 noisy_float = "0.1.10"
-
-[profile.release]
-debug = true
