@@ -17,15 +17,14 @@ impl From<bool> for Gene {
     }
 }
 
-#[derive(Clone)]
-pub struct BinaryChromosome {
-    genes: Vec<Gene>,
+pub struct BinaryChromosome<'s> {
+    genes: &'s mut [Gene],
 }
 
-impl BinaryChromosome {
-    pub fn with_length(length: usize) -> Self {
-        BinaryChromosome {
-            genes: vec![Gene::Zero; length]
+impl<'a> BinaryChromosome<'a> {
+    pub fn from_slice<'b: 'a>(slice: &'a mut [Gene]) -> Self {
+        Self {
+            genes: slice
         }
     }
 
@@ -70,15 +69,20 @@ impl BinaryChromosome {
             Gene::One => Gene::Zero,
         });
     }
+
+    #[inline]
+    pub fn clone_genes_from(&mut self, other: &Self) {
+        self.genes.copy_from_slice(other.genes);
+    }
 }
 
-impl Display for Chromosome {
+impl Display for Chromosome<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        for gene in &self.genes {
+        for gene in self.genes.iter() {
             write!(f, "{}", if *gene == Gene::Zero { '0' } else { '1' })?;
         }
         Ok(())
     }
 }
 
-pub type Chromosome = BinaryChromosome;
+pub type Chromosome<'s> = BinaryChromosome<'s>;

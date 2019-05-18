@@ -1,7 +1,7 @@
 use rand::{Rng, seq::SliceRandom};
 use noisy_float::prelude::*;
 use rayon::prelude::*;
-use crate::{Graph, chromosome::Chromosome};
+use crate::{Graph, chromosome::{Chromosome, Gene}};
 
 pub trait Constraint: Copy {
     fn is_satisfied(&self, chromosome: &Chromosome) -> bool;
@@ -111,12 +111,12 @@ fn twopoint_crossover(
     }
 }
 
-fn tournament_succession<'p>(
-    population: &'p [Specimen],
+fn tournament_succession<'pool>(
+    population: &'pool [Specimen],
     selection_size: usize,
     fitness: fn(&Specimen) -> f32,
     rng: &mut impl Rng,
-) -> &'p Specimen {
+) -> &'pool Specimen<'pool> {
     let mut best_specimen = None;
 
     for _ in 0..selection_size {
@@ -132,10 +132,20 @@ fn tournament_succession<'p>(
     &population[best_specimen.unwrap()]
 }
 
-struct Specimen {
-    chromosome: Chromosome,
+struct Specimen<'a> {
+    chromosome: Chromosome<'a>,
     f1: Option<N32>,
     f2: Option<N32>,
+}
+
+impl<'a> Specimen<'a> {
+    fn from_chromosome(chromosome: Chromosome) -> Specimen {
+        Specimen {
+            chromosome,
+            f1: Option::None,
+            f2: Option::None
+        }
+    }
 }
 
 pub struct Config {
@@ -146,6 +156,38 @@ pub struct Config {
     pub max_iterations: Option<usize>,
 }
 
+struct PopulationPool {
+    data: Vec<Gene>,
+    number_of_specimens: usize,
+    chromosome_length: usize,
+}
+
+impl PopulationPool {
+    fn new(number_of_specimens: usize, size_of_chromosome: usize) -> Self {
+        Self {
+            data: vec![Gene::Zero; number_of_specimens * size_of_chromosome],
+            number_of_specimens,
+            chromosome_length: size_of_chromosome,
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.number_of_specimens
+    }
+
+    fn nth_mut(&mut self, n: usize) -> &mut [Gene] {
+        self.data.chunks_exact_mut(self.chromosome_length).nth(n).unwrap()
+    }
+
+    fn chromosomes(&self) -> impl Iterator<Item=&[Gene]> {
+        self.data.chunks_exact(self.chromosome_length)
+    }
+
+    fn chromosomes_mut(&mut self) -> impl Iterator<Item=&mut [Gene]> {
+        self.data.chunks_exact_mut(self.chromosome_length)
+    }
+}
+
 pub fn bipartition_ga(
     config: &Config,
     rng: &mut impl Rng,
@@ -154,13 +196,24 @@ pub fn bipartition_ga(
     constraint: impl Constraint,
     callback: fn(usize, f32, f32),
 ) {
-    let mut population = initial_population(graph.vertices(), config.population_size, constraint, rng);
-    let mut offspring = Vec::with_capacity(config.population_size);
+    let mut population_pool = PopulationPool::new(config.population_size, graph.vertices());
+    initial_population(&mut population_pool, graph.vertices(), config.population_size, constraint, rng);
+    let mut offspring_population = PopulationPool::new(config.population_size, graph.vertices());
 
     let max_iterations = config.max_iterations.unwrap_or(usize::max_value());
 
     for i in 0..max_iterations {
-        population.par_iter_mut().for_each(|specimen: &mut Specimen| {
+        let mut population: Vec<Specimen> = population_pool
+            .chromosomes_mut()
+            .map(|it| Specimen::from_chromosome(Chromosome::from_slice(it)))
+            .collect();
+
+        let mut offspring: Vec<Specimen> = offspring_population
+            .chromosomes_mut()
+            .map(|it| Specimen::from_chromosome(Chromosome::from_slice(it)))
+            .collect();
+
+        population.par_iter_mut().for_each(|specimen| {
             let (f1, f2) = objectives.calculate(&graph, &specimen.chromosome);
             specimen.f1 = Some(n32(f1));
             specimen.f2 = Some(n32(f2));
@@ -175,21 +228,23 @@ pub fn bipartition_ga(
         pop1.sort_by_key(|s| s.f1.unwrap());
         pop2.sort_by_key(|s| s.f2.unwrap());
 
-        while offspring.len() < config.population_size / 2 {
-            let desc = tournament_succession(&pop1, config.tournament_size, |s| s.f1.unwrap().into(), rng);
-            offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
+        for offspring in offspring.iter_mut().take(config.population_size / 2) {
+            let ancestor = tournament_succession(&pop1, config.tournament_size, |s| s.f1.unwrap().into(), rng);
+            offspring.chromosome.clone_genes_from(&ancestor.chromosome);
+            offspring.f1 = None;
+            offspring.f2 = None;
         }
 
-        while offspring.len() < config.population_size {
-            let desc = tournament_succession(&pop2, config.tournament_size, |s| s.f2.unwrap().into(), rng);
-            offspring.push(Specimen { chromosome: desc.chromosome.clone(), f1: None, f2: None });
+        for offspring in offspring.iter_mut().skip(config.population_size / 2) {
+            let ancestor = tournament_succession(&pop2, config.tournament_size, |s| s.f2.unwrap().into(), rng);
+            offspring.chromosome.clone_genes_from(&ancestor.chromosome);
+            offspring.f1 = None;
+            offspring.f2 = None;
         }
 
-        population.clear();
-        std::mem::swap(&mut population, &mut offspring);
-        population.shuffle(rng);
+        offspring.shuffle(rng);
 
-        for specimen in population.iter_mut() {
+        for specimen in offspring.iter_mut() {
             let should_mutate = rng.gen_range(0.0, 1.0) < config.mutation_probability;
             if !should_mutate {
                 continue;
@@ -202,7 +257,7 @@ pub fn bipartition_ga(
             mutation(&mut specimen.chromosome, constraint, rng);
         }
 
-        for pair in population.chunks_exact_mut(2) {
+        for pair in offspring.chunks_exact_mut(2) {
             let should_crossover = rng.gen_range(0.0, 1.0) < config.crossover_probability;
             if !should_crossover {
                 continue;
@@ -219,6 +274,8 @@ pub fn bipartition_ga(
             };
             crossover(&mut s1.chromosome, &mut s2.chromosome, constraint, rng);
         }
+
+        std::mem::swap(&mut population_pool, &mut offspring_population);
     }
 }
 
@@ -234,21 +291,21 @@ pub fn print_edges(vertices: usize, graph: &Graph) {
 }
 
 fn initial_population(
+    population_storage: &mut PopulationPool,
     vertices: usize,
     population_size: usize,
     constraint: impl Constraint,
     rng: &mut impl Rng,
-) -> Vec<Specimen> {
-    let mut population = Vec::with_capacity(population_size);
-    while population.len() < population_size {
-        let mut ch = Chromosome::with_length(vertices);
+) {
+    let mut created = 0;
+    while created < population_size {
+        let mut ch = Chromosome::from_slice(population_storage.nth_mut(created));
         for j in 0..vertices {
             ch.set(j, rng.gen::<bool>().into());
         }
 
         if constraint.is_satisfied(&ch) {
-            population.push(Specimen { chromosome: ch, f1: None, f2: None });
+            created += 1;
         }
     }
-    population
 }
