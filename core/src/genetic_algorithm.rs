@@ -282,8 +282,7 @@ pub fn bipartition_ga(
 pub fn print_edges(vertices: usize, graph: &Graph) {
     for i in 0..vertices {
         for j in i + 1..vertices {
-            let weight = graph.get_edge(i, j);
-            if weight != 0 {
+            if let Some(weight) = graph.get_edge(i, j) {
                 println!("{} <--({})--> {}", i, weight, j);
             }
         }

@@ -17,8 +17,20 @@ impl<'storage> Graph<'storage> {
     }
 
     #[inline]
-    pub fn get_edge(&self, i: usize, j: usize) -> u32 {
-        self.storage[i * self.number_of_vertices + j]
+    pub fn get_edge(&self, i: usize, j: usize) -> Option<u32> {
+        assert!(i < self.number_of_vertices);
+        assert!(j < self.number_of_vertices);
+        unsafe { self.get_edge_unchecked(i, j) }
+    }
+
+    #[inline]
+    unsafe fn get_edge_unchecked(&self, i: usize, j: usize) -> Option<u32> {
+        let weight = *self.storage.get_unchecked(i * self.number_of_vertices + j);
+        if weight == 0 {
+            None
+        } else {
+            Some(weight)
+        }
     }
 
     #[inline]
@@ -43,8 +55,14 @@ impl<'storage> Graph<'storage> {
         arcs / 2
     }
 
-    pub fn iter_connecting<'g>(&'g self, c: &'g Chromosome) -> impl Iterator<Item=(usize, usize)> + 'g {
-        self.iter_edges().filter(move |&(i, j)| self.get_edge(i, j) != 0 && c.get(i) != c.get(j))
+    pub fn iter_connecting<'g>(&'g self, c: &'g Chromosome) -> impl Iterator<Item=Edge> + 'g {
+        self.iter_edges().filter_map(move |(i, j)| {
+            let weight = unsafe { self.get_edge_unchecked(i, j)? };
+            if c.get(i) == c.get(j) {
+                return None;
+            }
+            Some(Edge { i, j, weight })
+        })
     }
 
     fn iter_edges<'g>(&'g self) -> impl Iterator<Item=(usize, usize)> + 'g {
@@ -57,6 +75,13 @@ impl<'storage> Graph<'storage> {
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct Edge {
+    pub i: usize,
+    pub j: usize,
+    pub weight: u32,
+}
+
 fn is_connected(graph: &Graph) -> bool {
     let mut visited = HashSet::new();
     let mut remaining = vec![0];
@@ -67,7 +92,7 @@ fn is_connected(graph: &Graph) -> bool {
         }
 
         for j in 0..graph.vertices() {
-            if graph.get_edge(current, j) != 0 {
+            if graph.get_edge(current, j).is_some() {
                 remaining.push(j);
             }
         }

@@ -125,8 +125,8 @@ fn objective_functions(
     ch: &Chromosome,
 ) -> (f32, f32) {
     let (sum, count) = graph.iter_connecting(ch)
-        .fold((0, 0), |(sum, count), (i, j)| {
-            (sum + graph.get_edge(i, j), count + 1)
+        .fold((0, 0), |(sum, count), edge| {
+            (sum + edge.weight, count + 1)
         });
     (sum as f32, count as f32)
 }
