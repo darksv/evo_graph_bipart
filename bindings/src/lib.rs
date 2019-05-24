@@ -87,7 +87,7 @@ pub unsafe fn optimize_ga(
     mutation_probability: f32,
     crossover_probability: f32,
     iterations: u32,
-    callback: fn(IterationInfo),
+    callback: fn(&IterationInfo),
 ) -> u32 {
     if instance.is_null() {
         return 1;

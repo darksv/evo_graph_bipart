@@ -179,12 +179,8 @@ impl PopulationPool {
         self.data.chunks_exact_mut(self.chromosome_length).nth(n).unwrap()
     }
 
-    fn chromosomes(&self) -> impl Iterator<Item=&[Gene]> {
-        self.data.chunks_exact(self.chromosome_length)
-    }
-
-    fn chromosomes_mut(&mut self) -> impl Iterator<Item=&mut [Gene]> {
-        self.data.chunks_exact_mut(self.chromosome_length)
+    fn chromosomes_mut(&mut self) -> impl Iterator<Item=Chromosome> {
+        self.data.chunks_exact_mut(self.chromosome_length).map(Chromosome::from_slice)
     }
 }
 
@@ -193,6 +189,7 @@ pub struct IterationInfo {
     pub iteration_number: usize,
     pub best_f1: f32,
     pub best_f2: f32,
+    pub genes: *const Gene,
 }
 
 pub fn bipartition_ga(
@@ -201,7 +198,7 @@ pub fn bipartition_ga(
     graph: &Graph,
     objectives: impl ObjectiveFunction,
     constraint: impl Constraint,
-    callback: fn(IterationInfo),
+    callback: fn(&IterationInfo),
 ) {
     let mut population_pool = PopulationPool::new(config.population_size, graph.vertices());
     initial_population(&mut population_pool, graph.vertices(), config.population_size, constraint, rng);
@@ -210,14 +207,16 @@ pub fn bipartition_ga(
     let max_iterations = config.max_iterations.unwrap_or(usize::max_value());
 
     for i in 0..max_iterations {
+        let gene_storage_ptr = population_pool.data.as_ptr();
+
         let mut population: Vec<Specimen> = population_pool
             .chromosomes_mut()
-            .map(|it| Specimen::from_chromosome(Chromosome::from_slice(it)))
+            .map(|it| Specimen::from_chromosome(it))
             .collect();
 
         let mut offspring: Vec<Specimen> = offspring_pool
             .chromosomes_mut()
-            .map(|it| Specimen::from_chromosome(Chromosome::from_slice(it)))
+            .map(|it| Specimen::from_chromosome(it))
             .collect();
 
         population.par_iter_mut().for_each(|specimen| {
@@ -229,10 +228,11 @@ pub fn bipartition_ga(
         let best1 = population.iter().max_by_key(|ch| ch.f1.unwrap()).unwrap();
         let best2 = population.iter().max_by_key(|ch| ch.f2.unwrap()).unwrap();
 
-        callback(IterationInfo{
+        callback(&IterationInfo{
             iteration_number: i,
             best_f1: best1.f1.unwrap().into(),
             best_f2: best2.f2.unwrap().into(),
+            genes: gene_storage_ptr,
         });
 
         let (pop1, pop2) = population.split_at_mut(config.population_size / 2);
