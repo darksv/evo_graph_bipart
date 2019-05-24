@@ -32,7 +32,7 @@ fn main() {
         crossover_probability: 0.175,
         tournament_size: 10,
         max_iterations: Some(10000)
-    }, &mut rng, &graph, objective_functions,is_constraint_satisfied,|i, f1, f2| {
-        println!("#{} {} {}", i, f1, f2);
+    }, &mut rng, &graph, objective_functions,is_constraint_satisfied,|info| {
+        println!("#{} {} {}", info.iteration_number, info.best_f1, info.best_f2);
     });
 }

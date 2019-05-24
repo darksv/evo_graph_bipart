@@ -1,4 +1,4 @@
-use core::{fill_graph_randomly, bipartition_ga, Graph, Config, Chromosome};
+use core::{fill_graph_randomly, bipartition_ga, Graph, Config, Chromosome, IterationInfo};
 use rand::thread_rng;
 use std::borrow::BorrowMut;
 
@@ -87,7 +87,7 @@ pub unsafe fn optimize_ga(
     mutation_probability: f32,
     crossover_probability: f32,
     iterations: u32,
-    callback: fn(usize, f32, f32),
+    callback: fn(IterationInfo),
 ) -> u32 {
     if instance.is_null() {
         return 1;

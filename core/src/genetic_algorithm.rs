@@ -188,13 +188,20 @@ impl PopulationPool {
     }
 }
 
+#[repr(C)]
+pub struct IterationInfo {
+    pub iteration_number: usize,
+    pub best_f1: f32,
+    pub best_f2: f32,
+}
+
 pub fn bipartition_ga(
     config: &Config,
     rng: &mut impl Rng,
     graph: &Graph,
     objectives: impl ObjectiveFunction,
     constraint: impl Constraint,
-    callback: fn(usize, f32, f32),
+    callback: fn(IterationInfo),
 ) {
     let mut population_pool = PopulationPool::new(config.population_size, graph.vertices());
     initial_population(&mut population_pool, graph.vertices(), config.population_size, constraint, rng);
@@ -222,7 +229,11 @@ pub fn bipartition_ga(
         let best1 = population.iter().max_by_key(|ch| ch.f1.unwrap()).unwrap();
         let best2 = population.iter().max_by_key(|ch| ch.f2.unwrap()).unwrap();
 
-        callback(i, best1.f1.unwrap().into(), best2.f2.unwrap().into());
+        callback(IterationInfo{
+            iteration_number: i,
+            best_f1: best1.f1.unwrap().into(),
+            best_f2: best2.f2.unwrap().into(),
+        });
 
         let (pop1, pop2) = population.split_at_mut(config.population_size / 2);
         pop1.sort_by_key(|s| s.f1.unwrap());
