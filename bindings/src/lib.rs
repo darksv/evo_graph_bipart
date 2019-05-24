@@ -1,4 +1,4 @@
-use core::{fill_graph_randomly, bipartition_ga, Graph, Config, Chromosome, IterationInfo};
+use core::{fill_graph_randomly, calculate_graph_density, bipartition_ga, Graph, Config, Chromosome, IterationInfo};
 use rand::thread_rng;
 use std::borrow::BorrowMut;
 
@@ -41,13 +41,6 @@ pub unsafe fn destroy_graph_instance(
     drop(instance);
 
     0
-}
-
-fn calculate_graph_density(graph: &Graph) -> f32 {
-    let existing_edges = graph.edges() as f32;
-    let vertices = graph.vertices() as f32;
-    let all_edges = vertices * (vertices - 1.0) / 2.0;
-    existing_edges / all_edges
 }
 
 #[no_mangle]

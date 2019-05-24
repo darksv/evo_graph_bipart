@@ -124,3 +124,10 @@ pub fn fill_graph_randomly(
         }
     }
 }
+
+pub fn calculate_graph_density(graph: &Graph) -> f32 {
+    let existing_edges = graph.edges() as f32;
+    let vertices = graph.vertices() as f32;
+    let all_edges = vertices * (vertices - 1.0) / 2.0;
+    existing_edges / all_edges
+}
