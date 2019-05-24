@@ -34,5 +34,6 @@ fn main() {
         max_iterations: Some(10000)
     }, &mut rng, &graph, objective_functions,is_constraint_satisfied,|info| {
         println!("#{} {} {}", info.iteration_number, info.best_f1, info.best_f2);
+        return true;
     });
 }

@@ -80,14 +80,19 @@ pub unsafe fn randomize_graph(
     0
 }
 
+pub struct Handle {
+    termination_tx: std::sync::mpsc::Sender<()>,
+}
+
 #[no_mangle]
-pub unsafe fn optimize_ga(
-    instance: *const Graph,
+pub unsafe fn start_genetic_algorithm(
+    instance: *const Graph<'static>,
     population_size: u32,
     mutation_probability: f32,
     crossover_probability: f32,
     iterations: u32,
     callback: fn(&IterationInfo),
+    handle: *mut *const Handle,
 ) -> u32 {
     if instance.is_null() {
         return 1;
@@ -105,17 +110,66 @@ pub unsafe fn optimize_ga(
         return 4;
     }
 
-    if iterations == 0 {
-        return 5;
+    let max_iterations = if iterations == 0 {
+        None
+    } else {
+        Some(iterations as usize)
+    };
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let instance = &*instance;
+
+    // Run a thread in the background that will wait for termination of the execution
+    std::thread::spawn(move || {
+        let config = Config {
+            population_size: population_size as usize,
+            mutation_probability: mutation_probability as f64,
+            crossover_probability: crossover_probability as f64,
+            tournament_size: 10,
+            max_iterations,
+        };
+        bipartition_ga(
+            &config,
+            thread_rng().borrow_mut(),
+            instance,
+            objective_functions,
+            is_constraint_satisfied,
+            |info| {
+                callback(info);
+
+                if rx.try_recv().is_ok() {
+                    // Got a message - terminate execution
+                    true
+                } else {
+                    // otherwise continue
+                    false
+                }
+            },
+        );
+    });
+
+    let new_handle = Box::new(Handle {
+        termination_tx: tx,
+    });
+
+    *handle = &*new_handle as *const Handle;
+
+    // We do not want to drop the sender...
+    std::mem::forget(new_handle);
+
+    0
+}
+
+#[no_mangle]
+pub unsafe fn stop_genetic_algorithm(
+    context: *mut Handle,
+) -> u32 {
+    if context.is_null() {
+        return 1;
     }
 
-    bipartition_ga(&Config {
-        population_size: population_size as usize,
-        mutation_probability: mutation_probability as f64,
-        crossover_probability: crossover_probability as f64,
-        tournament_size: 0,
-        max_iterations: None
-    }, thread_rng().borrow_mut(), &*instance, objective_functions, is_constraint_satisfied, callback);
+    let ctx: Box<Handle> = Box::from_raw(context);
+    ctx.termination_tx.send(()).unwrap();
 
     0
 }

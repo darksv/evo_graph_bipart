@@ -199,7 +199,7 @@ pub fn bipartition_ga(
     graph: &Graph,
     objectives: impl ObjectiveFunction,
     constraint: impl Constraint,
-    callback: fn(&IterationInfo),
+    callback: impl Fn(&IterationInfo) -> bool,
 ) {
     let max_iterations = config.max_iterations.unwrap_or(usize::max_value());
 
@@ -239,13 +239,17 @@ pub fn bipartition_ga(
         let best1 = population.iter().max_by_key(|ch| ch.f1.unwrap()).unwrap();
         let best2 = population.iter().max_by_key(|ch| ch.f2.unwrap()).unwrap();
 
-        callback(&IterationInfo{
+        let should_break = callback(&IterationInfo {
             iteration_number: i,
             best_f1: best1.f1.unwrap().into(),
             best_f2: best2.f2.unwrap().into(),
             genes: gene_storage_ptr,
             fitnesses: fitnesses.as_ptr() as *const f32,
         });
+
+        if should_break {
+            return;
+        }
 
         let (pop1, pop2) = population.split_at_mut(config.population_size / 2);
         pop1.sort_by_key(|s| s.f1.unwrap());
