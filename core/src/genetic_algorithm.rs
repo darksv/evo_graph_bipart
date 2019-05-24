@@ -198,7 +198,7 @@ pub fn bipartition_ga(
 ) {
     let mut population_pool = PopulationPool::new(config.population_size, graph.vertices());
     initial_population(&mut population_pool, graph.vertices(), config.population_size, constraint, rng);
-    let mut offspring_population = PopulationPool::new(config.population_size, graph.vertices());
+    let mut offspring_pool = PopulationPool::new(config.population_size, graph.vertices());
 
     let max_iterations = config.max_iterations.unwrap_or(usize::max_value());
 
@@ -208,7 +208,7 @@ pub fn bipartition_ga(
             .map(|it| Specimen::from_chromosome(Chromosome::from_slice(it)))
             .collect();
 
-        let mut offspring: Vec<Specimen> = offspring_population
+        let mut offspring: Vec<Specimen> = offspring_pool
             .chromosomes_mut()
             .map(|it| Specimen::from_chromosome(Chromosome::from_slice(it)))
             .collect();
@@ -275,7 +275,7 @@ pub fn bipartition_ga(
             crossover(&mut s1.chromosome, &mut s2.chromosome, constraint, rng);
         }
 
-        std::mem::swap(&mut population_pool, &mut offspring_population);
+        std::mem::swap(&mut population_pool, &mut offspring_pool);
     }
 }
 
