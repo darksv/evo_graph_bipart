@@ -143,7 +143,7 @@ impl<'a> Specimen<'a> {
         Specimen {
             chromosome,
             f1: Option::None,
-            f2: Option::None
+            f2: Option::None,
         }
     }
 }
@@ -190,6 +190,7 @@ pub struct IterationInfo {
     pub best_f1: f32,
     pub best_f2: f32,
     pub genes: *const Gene,
+    pub fitnesses: *const f32,
 }
 
 pub fn bipartition_ga(
@@ -200,11 +201,13 @@ pub fn bipartition_ga(
     constraint: impl Constraint,
     callback: fn(&IterationInfo),
 ) {
+    let max_iterations = config.max_iterations.unwrap_or(usize::max_value());
+
     let mut population_pool = PopulationPool::new(config.population_size, graph.vertices());
     initial_population(&mut population_pool, graph.vertices(), config.population_size, constraint, rng);
     let mut offspring_pool = PopulationPool::new(config.population_size, graph.vertices());
 
-    let max_iterations = config.max_iterations.unwrap_or(usize::max_value());
+    let mut fitnesses: Vec<(f32, f32)> = vec![(0.0, 0.0); config.population_size];
 
     for i in 0..max_iterations {
         let gene_storage_ptr = population_pool.data.as_ptr();
@@ -225,6 +228,14 @@ pub fn bipartition_ga(
             specimen.f2 = Some(n32(f2));
         });
 
+        fitnesses.clear();
+        for specimen in &population {
+            fitnesses.push((
+                specimen.f1.unwrap().into(),
+                specimen.f2.unwrap().into()
+            ));
+        }
+
         let best1 = population.iter().max_by_key(|ch| ch.f1.unwrap()).unwrap();
         let best2 = population.iter().max_by_key(|ch| ch.f2.unwrap()).unwrap();
 
@@ -233,6 +244,7 @@ pub fn bipartition_ga(
             best_f1: best1.f1.unwrap().into(),
             best_f2: best2.f2.unwrap().into(),
             genes: gene_storage_ptr,
+            fitnesses: fitnesses.as_ptr() as *const f32,
         });
 
         let (pop1, pop2) = population.split_at_mut(config.population_size / 2);
