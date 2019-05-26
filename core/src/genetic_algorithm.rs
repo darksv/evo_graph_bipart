@@ -148,7 +148,7 @@ impl<'a> Specimen<'a> {
     }
 }
 
-pub struct Config {
+pub struct GeneticAlgorithmParameters {
     pub population_size: usize,
     pub mutation_probability: f64,
     pub crossover_probability: f64,
@@ -194,20 +194,20 @@ pub struct IterationInfo {
 }
 
 pub fn bipartition_ga(
-    config: &Config,
+    params: &GeneticAlgorithmParameters,
     rng: &mut impl Rng,
     graph: &Graph,
     objectives: impl ObjectiveFunction,
     constraint: impl Constraint,
     callback: impl Fn(&IterationInfo) -> bool,
 ) {
-    let max_iterations = config.max_iterations.unwrap_or(usize::max_value());
+    let max_iterations = params.max_iterations.unwrap_or(usize::max_value());
 
-    let mut population_pool = PopulationPool::new(config.population_size, graph.vertices());
-    initial_population(&mut population_pool, graph.vertices(), config.population_size, constraint, rng);
-    let mut offspring_pool = PopulationPool::new(config.population_size, graph.vertices());
+    let mut population_pool = PopulationPool::new(params.population_size, graph.vertices());
+    initial_population(&mut population_pool, graph.vertices(), params.population_size, constraint, rng);
+    let mut offspring_pool = PopulationPool::new(params.population_size, graph.vertices());
 
-    let mut fitnesses: Vec<(f32, f32)> = vec![(0.0, 0.0); config.population_size];
+    let mut fitnesses: Vec<(f32, f32)> = vec![(0.0, 0.0); params.population_size];
 
     for i in 0..max_iterations {
         let gene_storage_ptr = population_pool.data.as_ptr();
@@ -251,19 +251,19 @@ pub fn bipartition_ga(
             return;
         }
 
-        let (pop1, pop2) = population.split_at_mut(config.population_size / 2);
+        let (pop1, pop2) = population.split_at_mut(params.population_size / 2);
         pop1.sort_by_key(|s| s.f1.unwrap());
         pop2.sort_by_key(|s| s.f2.unwrap());
 
-        for offspring in offspring.iter_mut().take(config.population_size / 2) {
-            let ancestor = tournament_succession(&pop1, config.tournament_size, |s| s.f1.unwrap().into(), rng);
+        for offspring in offspring.iter_mut().take(params.population_size / 2) {
+            let ancestor = tournament_succession(&pop1, params.tournament_size, |s| s.f1.unwrap().into(), rng);
             offspring.chromosome.clone_genes_from(&ancestor.chromosome);
             offspring.f1 = None;
             offspring.f2 = None;
         }
 
-        for offspring in offspring.iter_mut().skip(config.population_size / 2) {
-            let ancestor = tournament_succession(&pop2, config.tournament_size, |s| s.f2.unwrap().into(), rng);
+        for offspring in offspring.iter_mut().skip(params.population_size / 2) {
+            let ancestor = tournament_succession(&pop2, params.tournament_size, |s| s.f2.unwrap().into(), rng);
             offspring.chromosome.clone_genes_from(&ancestor.chromosome);
             offspring.f1 = None;
             offspring.f2 = None;
@@ -272,7 +272,7 @@ pub fn bipartition_ga(
         offspring.shuffle(rng);
 
         for specimen in offspring.iter_mut() {
-            let should_mutate = rng.gen_range(0.0, 1.0) < config.mutation_probability;
+            let should_mutate = rng.gen_range(0.0, 1.0) < params.mutation_probability;
             if !should_mutate {
                 continue;
             }
@@ -285,7 +285,7 @@ pub fn bipartition_ga(
         }
 
         for pair in offspring.chunks_exact_mut(2) {
-            let should_crossover = rng.gen_range(0.0, 1.0) < config.crossover_probability;
+            let should_crossover = rng.gen_range(0.0, 1.0) < params.crossover_probability;
             if !should_crossover {
                 continue;
             }

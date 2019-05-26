@@ -1,4 +1,4 @@
-use core::{bipartition_ga, Config, fill_graph_randomly, print_edges, Graph, Chromosome};
+use core::{bipartition_ga, GeneticAlgorithmParameters, fill_graph_randomly, print_edges, Graph, Chromosome};
 use rand::thread_rng;
 
 
@@ -26,14 +26,14 @@ fn main() {
     let mut graph = Graph::from_slice(vertices, storage.as_mut_slice());
     fill_graph_randomly(&mut graph, 0.00, &mut rng);
     print_edges(vertices, &graph);
-    bipartition_ga(&Config {
+    bipartition_ga(&GeneticAlgorithmParameters {
         population_size: 100,
         mutation_probability: 0.315,
         crossover_probability: 0.175,
         tournament_size: 10,
         max_iterations: Some(10000)
-    }, &mut rng, &graph, objective_functions,is_constraint_satisfied,|info| {
+    }, &mut rng, &graph, objective_functions,is_constraint_satisfied, |info| {
         println!("#{} {} {}", info.iteration_number, info.best_f1, info.best_f2);
-        return true;
+        return false;
     });
 }

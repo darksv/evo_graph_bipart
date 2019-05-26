@@ -1,4 +1,4 @@
-use core::{fill_graph_randomly, calculate_graph_density, bipartition_ga, Graph, Config, Chromosome, IterationInfo};
+use core::{fill_graph_randomly, calculate_graph_density, bipartition_ga, Graph, GeneticAlgorithmParameters, Chromosome, IterationInfo};
 use rand::thread_rng;
 use std::borrow::BorrowMut;
 
@@ -77,13 +77,18 @@ pub struct Handle {
     termination_tx: std::sync::mpsc::Sender<()>,
 }
 
-#[no_mangle]
-pub unsafe fn start_genetic_algorithm(
-    instance: *const Graph<'static>,
+pub struct GaConfig {
     population_size: u32,
     mutation_probability: f32,
     crossover_probability: f32,
+    tournament_size: u32,
     iterations: u32,
+}
+
+#[no_mangle]
+pub unsafe fn run_genetic_optimization(
+    instance: *const Graph<'static>,
+    config: *const GaConfig,
     callback: fn(&IterationInfo),
     handle: *mut *const Handle,
 ) -> u32 {
@@ -91,22 +96,28 @@ pub unsafe fn start_genetic_algorithm(
         return 1;
     }
 
-    if population_size == 0 {
+    if config.is_null() {
         return 2;
     }
 
-    if !(mutation_probability >= 0.0 && mutation_probability <= 1.0) {
+    let config = &*config;
+
+    if config.population_size == 0 {
         return 3;
     }
 
-    if !(crossover_probability >= 0.0 && mutation_probability <= 1.0) {
+    if !(config.mutation_probability >= 0.0 && config.mutation_probability <= 1.0) {
         return 4;
     }
 
-    let max_iterations = if iterations == 0 {
+    if !(config.crossover_probability >= 0.0 && config.mutation_probability <= 1.0) {
+        return 5;
+    }
+
+    let max_iterations = if config.iterations == 0 {
         None
     } else {
-        Some(iterations as usize)
+        Some(config.iterations as usize)
     };
 
     let (tx, rx) = std::sync::mpsc::channel();
@@ -114,15 +125,16 @@ pub unsafe fn start_genetic_algorithm(
 
     // Run a thread in the background that will wait for termination of the execution
     std::thread::spawn(move || {
-        let config = Config {
-            population_size: population_size as usize,
-            mutation_probability: mutation_probability as f64,
-            crossover_probability: crossover_probability as f64,
-            tournament_size: 10,
+
+        let params = GeneticAlgorithmParameters {
+            population_size: config.population_size as usize,
+            mutation_probability: config.mutation_probability as f64,
+            crossover_probability: config.crossover_probability as f64,
+            tournament_size: config.tournament_size as usize,
             max_iterations,
         };
         bipartition_ga(
-            &config,
+            &params,
             thread_rng().borrow_mut(),
             instance,
             objective_functions,
@@ -154,7 +166,7 @@ pub unsafe fn start_genetic_algorithm(
 }
 
 #[no_mangle]
-pub unsafe fn stop_genetic_algorithm(
+pub unsafe fn terminate_genetic_optimization(
     context: *mut Handle,
 ) -> u32 {
     if context.is_null() {
